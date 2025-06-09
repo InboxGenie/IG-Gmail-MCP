@@ -1,0 +1,1 @@
+MCP Server for Gmail inbox interactions
