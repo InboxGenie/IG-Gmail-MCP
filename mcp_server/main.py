@@ -1,6 +1,6 @@
 from typing import Dict, Literal
 from fastmcp import FastMCP
-from mangum import Mangum
+import uvicorn
 
 from mcp_server.auth import get_auth
 from mcp_server.dynamodb import DynamoDbClient
@@ -61,10 +61,5 @@ def get_unread_messages_tool(from_date: int | None = None):
 
 http_app = mcp.http_app()
 
-def handler(event: dict, context: dict):
-    mangum_handler = Mangum(http_app)
-    return mangum_handler(event, context)
-
-
-# if __name__ == "__main__":
-#     uvicorn.run(http_app, host="0.0.0.0", port=8000)
+if __name__ == "__main__":
+    uvicorn.run(http_app, port=8000, server_header=False)

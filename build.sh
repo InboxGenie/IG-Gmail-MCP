@@ -9,10 +9,23 @@ mkdir -p build
 # Install dependencies
 uv sync
 
+# Determine OS and set appropriate lib directory case
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    LIB_DIR="lib"
+elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
+    LIB_DIR="Lib"
+else
+    # Default to lib for other Unix-like systems
+    LIB_DIR="lib"
+fi
+
 # Copy dependencies to build directory
-cp -r $(realpath .venv)/Lib/site-packages/* build/
+cp -r ./.venv/$LIB_DIR/python3.13/site-packages/* build/
 
 # Copy mcp_server directory to build directory
 cp -r mcp_server build/
+cp run.sh build/
 
-zip -r ./ig-gmail-mcp-server.zip build/
+cd build
+
+zip -r ../ig-gmail-mcp-server.zip .
