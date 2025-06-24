@@ -9,10 +9,10 @@ jobs:
   deploy:
     runs-on: {{ matrix.os }}
     strategy:
-    matrix:
-      include:
-        - os: ubuntu-22.04-arm
-          arch: arm64
+      matrix:
+        include:
+          - os: ubuntu-22.04-arm
+            arch: arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v1
