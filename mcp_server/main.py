@@ -1,5 +1,5 @@
 from typing import Dict, Literal
-from fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP
 import uvicorn
 
 from mcp_server.auth import get_auth
@@ -11,7 +11,9 @@ mcp = FastMCP(
     version="0.1.0",
     description="Gmail MCP Server",
     stateless_http=True,
-    json_response=True
+    json_response=True,
+    port=8000,
+    host="0.0.0.0"
 )
 
 TypedMCPAction = Literal["delete_messages", "get_unread_messages"]
@@ -59,7 +61,6 @@ def get_unread_messages_tool(from_date: int | None = None):
     return action_executor.execute(from_date=from_date)
 
 
-http_app = mcp.http_app()
 
 if __name__ == "__main__":
-    uvicorn.run(http_app, port=8000, server_header=False)
+    mcp.run(transport="streamable-http")
