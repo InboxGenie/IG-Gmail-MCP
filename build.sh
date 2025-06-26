@@ -24,7 +24,6 @@ cp -r ./.venv/$LIB_DIR/python3.13/site-packages/* build/
 
 # Copy mcp_server directory to build directory
 cp -r mcp_server build/
-cp run.sh build/
 
 cd build
 

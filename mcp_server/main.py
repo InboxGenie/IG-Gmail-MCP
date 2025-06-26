@@ -1,20 +1,14 @@
 from typing import Dict, Literal
-from mcp.server.fastmcp import FastMCP
-import uvicorn
 
 from mcp_server.auth import get_auth
 from mcp_server.dynamodb import DynamoDbClient
 from mcp_server.gmail_mcp_actions import DeleteMessages, GetUnreadMessages, MCPAction
+from awslabs.mcp_lambda_handler import MCPLambdaHandler
 
-mcp = FastMCP(
-    name="ig-gmail-mcp",
-    version="0.1.0",
-    description="Gmail MCP Server",
-    stateless_http=True,
-    json_response=True,
-    port=8000,
-    host="0.0.0.0"
-)
+from mcp_server.session_store import get_session_store
+
+
+mcp = MCPLambdaHandler(name="ig-gmail-mcp", version="0.1.0", session_store=get_session_store())
 
 TypedMCPAction = Literal["delete_messages", "get_unread_messages"]
 
@@ -62,5 +56,5 @@ def get_unread_messages_tool(from_date: int | None = None):
 
 
 
-if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+def handler(event, context):
+    return mcp.handle_request(event, context)

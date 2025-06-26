@@ -5,6 +5,7 @@ description = "Gmail MCP Server"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "awslabs-mcp-lambda-handler>=0.1.6",
     "fastmcp>=2.7.1",
     "google-api-python-client>=2.172.0",
     "google-auth-httplib2>=0.2.0",

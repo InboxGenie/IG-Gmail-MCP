@@ -37,6 +37,20 @@ wheels = [
 ]
 
 [[package]]
+name = "awslabs-mcp-lambda-handler"
+version = "0.1.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "boto3" },
+    { name = "botocore" },
+    { name = "python-dateutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5f/78/640fb69750b332d5b6214505a4d4b0e5038f883820e68f8264a95a44da07/awslabs_mcp_lambda_handler-0.1.6.tar.gz", hash = "sha256:284bd96ccba5f14fc3d0052161e19fe79950fa8285f27f847f2f842bdbc9a2d2", size = 62922, upload-time = "2025-06-13T17:16:15.396Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f7/e2/0b7b66fd8312d6312de7e08978eb778394c49fc61da2a2c23195daf0f671/awslabs_mcp_lambda_handler-0.1.6-py3-none-any.whl", hash = "sha256:04371c1218f8c6607c69bfcec1e1544e28be8ffe1e508fb4464a9adce5673c0f", size = 16115, upload-time = "2025-06-13T17:16:14.284Z" },
+]
+
+[[package]]
 name = "boto3"
 version = "1.38.43"
 source = { registry = "https://pypi.org/simple" }
@@ -366,6 +380,7 @@ name = "ig-gmail-mcp"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "awslabs-mcp-lambda-handler" },
     { name = "fastmcp" },
     { name = "google-api-python-client" },
     { name = "google-auth-httplib2" },
@@ -384,6 +399,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "awslabs-mcp-lambda-handler", specifier = ">=0.1.6" },
     { name = "boto3", marker = "extra == 'dev'", specifier = ">=1.38.43" },
     { name = "fastmcp", specifier = ">=2.7.1" },
     { name = "google-api-python-client", specifier = ">=2.172.0" },
