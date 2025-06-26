@@ -17,7 +17,7 @@ mcp_actions: Dict[TypedMCPAction, MCPAction] = {
     "get_unread_messages": GetUnreadMessages
 }
 
-@mcp.tool(name="delete_messages", description="Delete messages from a single or multiple senders or from a specific date")
+@mcp.tool()
 def delete_messages_tool(sender: list[str] | None = None, from_date: int | None = None, to_date: int | None = None):
     """
     sender: list[str] = The list of senders to delete messages from. Has to be a list of valid email addresses.
@@ -40,7 +40,7 @@ def delete_messages_tool(sender: list[str] | None = None, from_date: int | None 
     return action_executor.execute(message_ids=[message["message_id"] for message in messages])
 
 
-@mcp.tool(name="get_unread_messages", description="Get unread messages from a single or multiple senders or from a specific date")
+@mcp.tool()
 def get_unread_messages_tool(from_date: int | None = None):
     """
     from_date: int | None = The date to get unread messages from. Should be a unix timestamp in utc.
