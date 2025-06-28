@@ -1,10 +1,13 @@
+"""Gmail MCP actions"""
+
 from abc import ABC, abstractmethod
 import base64
 import email
+import io
 import json
 import os
 import time
-from typing import Any, Dict, List, TypedDict
+from typing import Any, Dict, List
 from googleapiclient.discovery import build, Resource
 from google.oauth2.credentials import Credentials
 
@@ -63,10 +66,7 @@ class GetUnreadMessages(MCPAction):
 
         assert request_id is not None, "request_id is required"
 
-        if from_date is not None:
-            _from: int = int(from_date)
-        else:
-            _from: int = self.__get_default_from_date()
+        _from: int = int(from_date) if from_date is not None else self.__get_default_from_date()
 
         #pylint: disable=E1101
         gmail_response = self.gmail_client.users().messages().list(userId="me", q=f"is:unread after:{_from}").execute()
@@ -90,12 +90,13 @@ class GetUnreadMessages(MCPAction):
 
         vector_store_id: str = os.getenv("VECTOR_STORE_ID")
         assert vector_store_id is not None, "VECTOR_STORE_ID is not set"
+        assert request_id is not None, "request_id is required"
+        assert unread_messages is not None and len(unread_messages) > 0, "unread_messages is required"
 
         openai_client: OpenAI = OpenAI()
-        json_messages: str = json.dumps(unread_messages)
 
         file_id: str = openai_client.files.create(
-            file=json_messages,
+            file=io.BytesIO(json.dumps(unread_messages).encode("utf-8")),
             purpose="user_data"
         ).id
 
