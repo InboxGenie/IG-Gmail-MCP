@@ -1,17 +1,17 @@
+import json
+from typing import List
 import boto3
 import os
 from boto3.dynamodb.conditions import Key, Attr
 
 class DynamoDbClient():
-    _messages_table_name: str
-
     def __init__(self):
         self._messages_table_name = os.getenv("MESSAGES_TABLE_NAME")
+        self._user_providers_table_name = os.getenv("USER_PROVIDERS_TABLE_NAME")
 
-    @classmethod
-    def get_messages(cls, hash_key: str, sender: list[str] | None = None, _from: int | None = None, _to: int | None = None) -> list[dict]:
+    def get_messages(self, hash_key: str, sender: list[str] | None = None, _from: int | None = None, _to: int | None = None) -> list[dict]:
         client = boto3.resource("dynamodb")
-        table = client.Table(cls._messages_table_name)
+        table = client.Table(self._messages_table_name)
 
         if sender:
             filter_expression = Attr("message_from").eq(sender[0])
@@ -53,3 +53,16 @@ class DynamoDbClient():
             items.extend(response["Items"])
 
         return items
+    
+    def get_refresh_token(self, hash_key: str) -> List[str] | str | None:
+        client = boto3.resource("dynamodb")
+        table = client.Table(self._user_providers_table_name)
+
+        response = table.query(
+            KeyConditionExpression=Key("email_hash").eq(hash_key) & Key("provider").eq("GMAIL"),
+            IndexName="email_hash-provider-index"
+        )
+
+        refresh_tokens: List[str] = [json.loads(item["auth_details"])["refresh_token"] for item in response["Items"]]
+
+        return refresh_tokens if len(refresh_tokens) > 1 else refresh_tokens[0] if refresh_tokens else None

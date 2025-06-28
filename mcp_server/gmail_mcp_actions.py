@@ -1,17 +1,26 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
-from googleapiclient.discovery import build, Resource
-from google.oauth2.credentials import Credentials
+import base64
+import email
+import json
 import os
 import time
-from datetime import datetime
+from typing import Any, Dict, List, TypedDict
+from googleapiclient.discovery import build, Resource
+from google.oauth2.credentials import Credentials
+
+
+from openai import OpenAI
+
+from mcp_server.typings import VectorStoreAttributes
 
 client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
 client_id = os.getenv("GOOGLE_CLIENT_ID")
 
+
 type MCPDictListResponse = List[Dict[str, Any]]
 
 class MCPAction(ABC):
+    """Base class for all MCP actions"""
     gmail_client: Resource
 
     def __init__(self, refresh_token: str):
@@ -20,9 +29,9 @@ class MCPAction(ABC):
 
     @abstractmethod
     def execute[T](self, **kwargs: Any) -> T:
-        pass
+        """Execute the action"""
 
-    def __build_authorized_user_info(refresh_token: str) -> dict:
+    def __build_authorized_user_info(self, refresh_token: str) -> dict:
         return {
             "refresh_token": refresh_token,
             "client_id": client_id,
@@ -31,41 +40,72 @@ class MCPAction(ABC):
 
 
 class DeleteMessages(MCPAction):
-    def __init__(self, refresh_token: str):
-        super().__init__(refresh_token)
+    """Delete messages from the user's inbox"""
 
-
-    def execute[int](self, **kwargs: Any) -> int:
+    def execute[T](self, **kwargs: Any) -> T:
         message_ids: list[str] = kwargs.get("message_ids", [])
 
         if not message_ids:
             return 0
         
+        #pylint: disable=E1101
         self.gmail_client.users().messages().batchDelete(userId="me", body={"ids": message_ids}).execute()
 
         return len(message_ids)
     
 
 class GetUnreadMessages(MCPAction):
-    def __init__(self, refresh_token: str):
-        super().__init__(refresh_token)
-    
-    def execute[MCPDictListResponse](self, **kwargs: Any) -> MCPDictListResponse:
-        _from: int = kwargs.get("from_date", self.__get_default_from_date())
+    """Get unread messages from the user's inbox"""
 
-        date: str = datetime.fromtimestamp(_from).strftime("%Y/%m/%d %H:%M:%S")
-        gmail_response = self.gmail_client.users().messages().list(userId="me", q=f"is:unread after:{date}").execute()
+    def execute[T](self, **kwargs: Any) -> T:
+        from_date = kwargs.get("from_date")
+        request_id: str = kwargs.get("request_id")
 
-        messages: list[dict] = gmail_response["messages"]
+        assert request_id is not None, "request_id is required"
+
+        if from_date is not None:
+            _from: int = int(from_date)
+        else:
+            _from: int = self.__get_default_from_date()
+
+        #pylint: disable=E1101
+        gmail_response = self.gmail_client.users().messages().list(userId="me", q=f"is:unread after:{_from}").execute()
+
+        messages: list[dict] = gmail_response["messages"] if "messages" in gmail_response else []
+        unread_messages: list[str] = []
+        for message in messages:
+            #pylint: disable=E1101
+            message_response = self.gmail_client.users().messages().get(userId="me", id=message["id"], format="raw").execute()
+            message_content = base64.urlsafe_b64decode(message_response["raw"].encode("ASCII"))
+            message_content = email.message_from_bytes(message_content)
+            unread_messages.append(message_content.as_string())
+
+        if unread_messages:
+            self.upload_to_vector_store(unread_messages, request_id)
         
-        for id, thread_id in messages:
-            message = self.gmail_client.users().messages().get(userId="me", id=id, format="full").execute()
-            print(message)
+        return len(unread_messages)
 
+    def upload_to_vector_store(self, unread_messages: list[str], request_id: str):
+        """Upload unread messages to the vector store"""
+
+        vector_store_id: str = os.getenv("VECTOR_STORE_ID")
+        assert vector_store_id is not None, "VECTOR_STORE_ID is not set"
+
+        openai_client: OpenAI = OpenAI()
+        json_messages: str = json.dumps(unread_messages)
+
+        file_id: str = openai_client.files.create(
+            file=json_messages,
+            purpose="user_data"
+        ).id
+
+        attributes: VectorStoreAttributes = {"request_id": request_id}
+
+        openai_client.vector_stores.files.create(
+            vector_store_id=vector_store_id,
+            file_id=file_id,
+            attributes=attributes
+        )
 
     def __get_default_from_date(self) -> int:
         return int(time.time()) - 5 * 24 * 60 * 60
-
-
-
-        

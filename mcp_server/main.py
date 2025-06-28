@@ -1,10 +1,11 @@
-from typing import Dict, Literal
+"""MCP server for Gmail integration with vector store capabilities."""
 
+from typing import Dict, List, Literal
+
+from awslabs.mcp_lambda_handler import MCPLambdaHandler
 from mcp_server.auth import get_auth
 from mcp_server.dynamodb import DynamoDbClient
 from mcp_server.gmail_mcp_actions import DeleteMessages, GetUnreadMessages, MCPAction
-from awslabs.mcp_lambda_handler import MCPLambdaHandler
-
 from mcp_server.session_store import get_session_store
 
 
@@ -16,6 +17,9 @@ mcp_actions: Dict[TypedMCPAction, MCPAction] = {
     "delete_messages": DeleteMessages,
     "get_unread_messages": GetUnreadMessages
 }
+
+authorized_user: dict | None = None
+request_id: str | None = None
 
 @mcp.tool()
 def delete_messages_tool(sender: list[str] | None = None, from_date: int | None = None, to_date: int | None = None):
@@ -31,11 +35,9 @@ def delete_messages_tool(sender: list[str] | None = None, from_date: int | None 
 
     Returns the number of messages deleted.
     """
-    auth: dict = get_auth()
+    messages: list[dict] = DynamoDbClient().get_messages(authorized_user["email_hash"], sender, from_date, to_date)
 
-    messages: list[dict] = DynamoDbClient.get_messages(sender, from_date, to_date)
-
-    action_executor: MCPAction = mcp_actions["delete_messages"](auth["refresh_token"])
+    action_executor: MCPAction = mcp_actions["delete_messages"](authorized_user["refresh_token"])
 
     return action_executor.execute(message_ids=[message["message_id"] for message in messages])
 
@@ -45,16 +47,33 @@ def get_unread_messages_tool(from_date: int | None = None):
     """
     from_date: int | None = The date to get unread messages from. Should be a unix timestamp in utc.
 
-    Returns the list of unread messages.
+    inbox: str | None = The inbox to get unread messages from. Should be a valid email address or empty string to get all inboxes.
+
+    Saves the unread messages to the vector store so model can use them for context.
     """
 
-    auth: dict = get_auth()
+    refresh_tokens: str | List[str] | None = DynamoDbClient().get_refresh_token(authorized_user["email_hash"])
+    if isinstance(refresh_tokens, list):
+        unread_messages: list[dict] = []
+        for refresh_token in refresh_tokens:
+            action_executor: MCPAction = mcp_actions["get_unread_messages"](refresh_token)
+            unread_messages.extend(action_executor.execute(from_date=from_date, request_id=request_id))
+        return unread_messages
+    
+    if isinstance(refresh_tokens, str):
+        action_executor: MCPAction = mcp_actions["get_unread_messages"](refresh_tokens)
+        return action_executor.execute(from_date=from_date, request_id=request_id)
 
-    action_executor: MCPAction = mcp_actions["get_unread_messages"](auth["refresh_token"])
-
-    return action_executor.execute(from_date=from_date)
-
-
+    raise ValueError("Invalid refresh tokens")
 
 def handler(event, context):
+    """
+    Handler for the MCP server.
+    """
+
+    #pylint: disable=W0603
+    global authorized_user
+    global request_id
+
+    authorized_user, request_id = get_auth(event)
     return mcp.handle_request(event, context)
