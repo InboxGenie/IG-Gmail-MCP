@@ -13,7 +13,7 @@ def get_auth(event: dict) -> tuple[str, str]:
 
     headers = {k.lower(): v for k, v in event.get('headers', {}).items()}
     token = headers.get("authorization", None)
-    request_id = headers.get("request-id", None)
+    request_id = headers.get("request_id", None)
 
     assert request_id is not None, "Request ID is required"
 

@@ -14,6 +14,7 @@ from google.oauth2.credentials import Credentials
 
 from openai import OpenAI
 
+from mcp_server.dynamodb import DynamoDbClient
 from mcp_server.typings import VectorStoreAttributes
 
 client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -60,30 +61,35 @@ class DeleteMessages(MCPAction):
 class GetUnreadMessages(MCPAction):
     """Get unread messages from the user's inbox"""
 
+    __dynamod_db_client: DynamoDbClient = DynamoDbClient()
+
     def execute[T](self, **kwargs: Any) -> T:
         from_date = kwargs.get("from_date")
-        request_id: str = kwargs.get("request_id")
+        email_hash = kwargs.get("email_hash")
 
-        assert request_id is not None, "request_id is required"
+        assert email_hash is not None, "email_hash is required"
 
         _from: int = int(from_date) if from_date is not None else self.__get_default_from_date()
 
+        print(f"Getting unread messages from {_from}")
+
         #pylint: disable=E1101
-        gmail_response = self.gmail_client.users().messages().list(userId="me", q=f"is:unread after:{_from}").execute()
+        gmail_response = self.gmail_client.users().messages().list(userId="me", q=f"is:unread after:{_from}", maxResults=20).execute()
 
         messages: list[dict] = gmail_response["messages"] if "messages" in gmail_response else []
-        unread_messages: list[str] = []
+        unread_messages: list[dict] = []
         for message in messages:
             #pylint: disable=E1101
-            message_response = self.gmail_client.users().messages().get(userId="me", id=message["id"], format="raw").execute()
-            message_content = base64.urlsafe_b64decode(message_response["raw"].encode("ASCII"))
-            message_content = email.message_from_bytes(message_content)
-            unread_messages.append(message_content.as_string())
+            message_item: dict | None = self.__dynamod_db_client.get_message_item(email_hash, message["id"])
+            if message_item is None:
+                print(f"Message {message['id']} not found in DynamoDB")
+                continue
 
-        if unread_messages:
-            self.upload_to_vector_store(unread_messages, request_id)
+            unread_messages.append(message_item)
+
+        print(f"Found {len(unread_messages)} unread messages")
         
-        return len(unread_messages)
+        return unread_messages
 
     def upload_to_vector_store(self, unread_messages: list[str], request_id: str):
         """Upload unread messages to the vector store"""
@@ -93,15 +99,21 @@ class GetUnreadMessages(MCPAction):
         assert request_id is not None, "request_id is required"
         assert unread_messages is not None and len(unread_messages) > 0, "unread_messages is required"
 
+        print(f"Uploading {len(unread_messages)} unread messages to the vector store")
+
         openai_client: OpenAI = OpenAI()
 
+        print("Creating file in OpenAI")
         file_id: str = openai_client.files.create(
-            file=io.BytesIO(json.dumps(unread_messages).encode("utf-8")),
+            file=(f"{request_id}.json", io.BytesIO(json.dumps(unread_messages).encode("utf-8")), "application/json"),
             purpose="user_data"
         ).id
 
+        print("File created in OpenAI")
+
         attributes: VectorStoreAttributes = {"request_id": request_id}
 
+        print("Creating vector store file in OpenAI")
         openai_client.vector_stores.files.create(
             vector_store_id=vector_store_id,
             file_id=file_id,

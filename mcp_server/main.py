@@ -50,21 +50,26 @@ def get_unread_messages_tool(from_date: int | None = None):
     inbox: str | None = The inbox to get unread messages from. Should be a valid email address or empty string to get all inboxes.
 
     Saves the unread messages to the vector store and model should call the file_search tool to get the messages.
+
+    Returns the number of unread messages. If it's 0, it means no unread messages were found if it's greater than 0, it means unread messages were found and the model should call the file_search tool to get the messages.
     """
 
     refresh_tokens: str | List[str] | None = DynamoDbClient().get_refresh_token(authorized_user["email_hash"])
     if isinstance(refresh_tokens, list):
-        unread_messages: list[dict] = []
+        unread_messages: List[str] = []
         for refresh_token in refresh_tokens:
             action_executor: MCPAction = mcp_actions["get_unread_messages"](refresh_token)
-            unread_messages.extend(action_executor.execute(from_date=from_date, request_id=request_id))
-        return unread_messages
+            unread_messages.extend(action_executor.execute(from_date=from_date, email_hash=authorized_user["email_hash"]))
     
     if isinstance(refresh_tokens, str):
         action_executor: MCPAction = mcp_actions["get_unread_messages"](refresh_tokens)
-        return action_executor.execute(from_date=from_date, request_id=request_id)
+        unread_messages: List[str] = action_executor.execute(from_date=from_date, email_hash=authorized_user["email_hash"])
 
-    raise ValueError("Invalid refresh tokens")
+    if len(unread_messages) > 0:
+        action_executor.upload_to_vector_store(unread_messages, request_id)
+
+
+    return "Now use file_search tool to retrieve the messages. The file contains the unread messages." if len(unread_messages) > 0 else "No unread messages found"
 
 def handler(event, context):
     """
