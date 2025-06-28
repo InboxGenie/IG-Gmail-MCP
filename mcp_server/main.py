@@ -49,7 +49,7 @@ def get_unread_messages_tool(from_date: int | None = None):
 
     inbox: str | None = The inbox to get unread messages from. Should be a valid email address or empty string to get all inboxes.
 
-    Saves the unread messages to the vector store so model can use them for context.
+    Saves the unread messages to the vector store and model should call the file_search tool to get the messages.
     """
 
     refresh_tokens: str | List[str] | None = DynamoDbClient().get_refresh_token(authorized_user["email_hash"])
