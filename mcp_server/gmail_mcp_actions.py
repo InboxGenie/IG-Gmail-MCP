@@ -166,7 +166,12 @@ class QueryMessages(GetUnreadMessages):
 
         messages: List[dict] = self.query(email_hash, query_str, None)
 
+        for i, message in enumerate(messages):
+            message["record_number"] = i
+
         self.upload_to_vector_store(messages, request_id)
+
+        return messages
 
     def query(self, email_hash: str, query: str, ui_filter: QueryFilter | None) -> List[dict]:
         """Query the user's inbox for messages"""
