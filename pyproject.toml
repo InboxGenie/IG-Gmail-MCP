@@ -12,6 +12,7 @@ dependencies = [
     "google-auth-oauthlib>=1.2.2",
     "mcp[cli]>=1.9.3",
     "openai>=1.93.0",
+    "pinecone>=7.3.0",
     "pydantic>=2.11.5",
     "pyjwt>=2.10.1",
     "python-dotenv>=1.1.0",

@@ -5,7 +5,7 @@ from typing import Dict, List, Literal
 from awslabs.mcp_lambda_handler import MCPLambdaHandler
 from mcp_server.auth import get_auth
 from mcp_server.dynamodb import DynamoDbClient
-from mcp_server.gmail_mcp_actions import DeleteMessages, GetUnreadMessages, MCPAction
+from mcp_server.gmail_mcp_actions import DeleteMessages, GetUnreadMessages, MCPAction, QueryMessages
 from mcp_server.session_store import get_session_store
 
 
@@ -15,7 +15,8 @@ TypedMCPAction = Literal["delete_messages", "get_unread_messages"]
 
 mcp_actions: Dict[TypedMCPAction, MCPAction] = {
     "delete_messages": DeleteMessages,
-    "get_unread_messages": GetUnreadMessages
+    "get_unread_messages": GetUnreadMessages,
+    "query_messages": QueryMessages
 }
 
 authorized_user: dict | None = None
@@ -68,8 +69,20 @@ def get_unread_messages_tool(from_date: int | None = None):
     if len(unread_messages) > 0:
         action_executor.upload_to_vector_store(unread_messages, request_id)
 
-
     return "Now use file_search tool to retrieve the messages. The file contains the unread messages." if len(unread_messages) > 0 else "No unread messages found"
+
+
+@mcp.tool()
+def query_messages_tool(query: str):
+    """
+    Queries user's inbox for messages using provided query.
+    Use this tool to query the user's inbox for messages.
+
+    Returns the messages that match the query.
+    """
+    action_executor: MCPAction = mcp_actions["query_messages"](None)
+    messages: List[dict] = action_executor.execute(query=query, email_hash=authorized_user["email_hash"], request_id=request_id)
+    return "Now use file_search tool to retrieve the messages. The file contains the all messages for provided query." if len(messages) > 0 else "No messages found"
 
 def handler(event, context):
     """

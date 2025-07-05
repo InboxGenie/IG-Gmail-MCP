@@ -83,3 +83,35 @@ class DynamoDbClient():
         )
 
         return response["Item"] if "Item" in response else None
+
+    def get_user_messages_by_filter(self, email_hash: str, dynamo_db_filter: Attr, max_items: int = 100) -> list[dict]:
+        """Get the user messages by filter"""
+        items: list[dict] = []  
+
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table(self._messages_table_name)
+        response = table.query(
+            KeyConditionExpression=Key('email_hash').eq(email_hash),
+            FilterExpression=dynamo_db_filter
+        )
+        items.extend(response['Items'])
+
+        while response.get('LastEvaluatedKey'):
+            if len(items) >= max_items:
+                break
+
+            response = table.query(
+                KeyConditionExpression=Key('email_hash').eq(email_hash),
+                FilterExpression=dynamo_db_filter,
+                ExclusiveStartKey=response['LastEvaluatedKey']
+            )
+            items.extend(response['Items'])
+
+        return items
+
+    def get_user_messages_by_message_id(self, email_hash: str, message_id: str) -> dict | None:
+        """Get the user messages by message id"""
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table(self._messages_table_name)
+        response = table.get_item(Key={'email_hash': email_hash, 'message_id': message_id})
+        return response['Item'] if 'Item' in response else None
