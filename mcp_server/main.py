@@ -80,7 +80,7 @@ def query_messages_tool(query: str):
 
     Returns the messages that match the query.
     """
-    action_executor: MCPAction = mcp_actions["query_messages"](None)
+    action_executor: MCPAction = mcp_actions["query_messages"]()
     messages: List[dict] = action_executor.execute(query=query, email_hash=authorized_user["email_hash"], request_id=request_id)
     return "Now use file_search tool to retrieve the messages. The file contains the all messages for provided query." if len(messages) > 0 else "No messages found"
 

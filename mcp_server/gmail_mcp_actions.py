@@ -148,7 +148,6 @@ class GetUnreadMessages(MCPAction):
 class QueryMessages(GetUnreadMessages):
     __pinecone_client: PineconeClient
     __reasoning_engine: ReasoningEngine
-    __openai_client: OpenAIClient
 
     def __init__(self):
         self.__pinecone_client = PineconeClient()
