@@ -1,7 +1,6 @@
 """Gmail MCP actions"""
 
 from abc import ABC, abstractmethod
-from functools import lru_cache
 import io
 import json
 import os
@@ -9,16 +8,15 @@ import time
 from typing import Any, Dict, List
 from googleapiclient.discovery import build, Resource
 from google.oauth2.credentials import Credentials
-from openai import OpenAI
 from openai.types.vector_stores import VectorStoreFile
+from boto3.dynamodb.conditions import Attr
+from pinecone import QueryResponse
+from mcp_server.encoders import DecimalEncoder
 from mcp_server.dynamodb import DynamoDbClient
 from mcp_server.typings import VectorStoreAttributes
 from mcp_server.pinecone_client import PineconeClient
 from mcp_server.reasoning_engine import ReasoningEngine
 from mcp_server.models import QueryFilter
-from pinecone import QueryResponse
-from openai.types.chat.chat_completion import ChatCompletionChunk
-from openai.types.chat.chat_completion_chunk import Stream
 from mcp_server.open_ai_client import OpenAIClient
 
 client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -69,7 +67,7 @@ class GetUnreadMessages(MCPAction):
     """Get unread messages from the user's inbox"""
 
     __openai_client: OpenAIClient = OpenAIClient()
-    __dynamod_db_client: DynamoDbClient = DynamoDbClient()
+    __dynamo_db_client: DynamoDbClient = DynamoDbClient()
 
     def execute[T](self, **kwargs: Any) -> T:
         from_date = kwargs.get("from_date")
@@ -88,7 +86,7 @@ class GetUnreadMessages(MCPAction):
         unread_messages: list[dict] = []
         for message in messages:
             #pylint: disable=E1101
-            message_item: dict | None = self.__dynamod_db_client.get_message_item(email_hash, message["id"])
+            message_item: dict | None = self.__dynamo_db_client.get_message_item(email_hash, message["id"])
             if message_item is None:
                 print(f"Message {message['id']} not found in DynamoDB")
                 continue
@@ -111,7 +109,7 @@ class GetUnreadMessages(MCPAction):
 
         print("Creating file in OpenAI")
         file_id: str = self.__openai_client.upload_vector_store_file(
-            file=(f"{request_id}.json", io.BytesIO(json.dumps(unread_messages).encode("utf-8")), "application/json"),
+            file=(f"{request_id}.json", io.BytesIO(json.dumps(unread_messages, cls=DecimalEncoder).encode("utf-8")), "application/json"),
             purpose="user_data"
         ).id
 
@@ -146,18 +144,18 @@ class GetUnreadMessages(MCPAction):
         return int(time.time()) - 5 * 24 * 60 * 60
     
 class QueryMessages(GetUnreadMessages):
+    """Query messages from the user's inbox"""
     __pinecone_client: PineconeClient
     __reasoning_engine: ReasoningEngine
 
     def __init__(self):
         self.__pinecone_client = PineconeClient()
-        super().__init__(None)
         self.__reasoning_engine = ReasoningEngine()
-        self.__openai_client = self.__get_openai_client()
-
-    """Query messages from the user's inbox"""
+        self.__dynamo_db_client = DynamoDbClient()
+        super().__init__(None)
 
     def execute[T](self, **kwargs: Any) -> T:
+        """Execute the action"""
         query_str: str = kwargs.get("query")
         email_hash: str = kwargs.get("email_hash")
         request_id: str = kwargs.get("request_id")
@@ -170,7 +168,8 @@ class QueryMessages(GetUnreadMessages):
 
         self.upload_to_vector_store(messages, request_id)
 
-    def query(email_hash: str, query: str, ui_filter: QueryFilter | None) -> List[dict]
+    def query(self, email_hash: str, query: str, ui_filter: QueryFilter | None) -> List[dict]:
+        """Query the user's inbox for messages"""
 
         reasoning_filters: dict = self.__reasoning_engine.get_additional_filters(query)
         is_filtering_by_date: bool = reasoning_filters.get("filtering_by_date", False)

@@ -6,7 +6,6 @@ import uuid
 import io
 from openai import OpenAI, Stream
 from openai.types.chat import ChatCompletionChunk
-from openai.types.responses import ResponseStreamEvent
 from openai.types.vector_stores import VectorStoreFile
 
 class OpenAIClient:

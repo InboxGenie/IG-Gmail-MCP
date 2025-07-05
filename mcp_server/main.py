@@ -76,9 +76,11 @@ def get_unread_messages_tool(from_date: int | None = None):
 def query_messages_tool(query: str):
     """
     Queries user's inbox for messages using provided query.
-    Use this tool to query the user's inbox for messages.
+    Use this tool to answer the user's question about his messages.
 
     Returns the messages that match the query.
+
+    query: str = The query to search for in the user's inbox.
     """
     action_executor: MCPAction = mcp_actions["query_messages"]()
     messages: List[dict] = action_executor.execute(query=query, email_hash=authorized_user["email_hash"], request_id=request_id)
