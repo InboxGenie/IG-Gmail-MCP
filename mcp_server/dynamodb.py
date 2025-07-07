@@ -1,6 +1,7 @@
 """DynamoDB client"""
 
 import json
+import time
 import os
 from typing import List
 import boto3
@@ -11,6 +12,7 @@ class DynamoDbClient():
     def __init__(self):
         self._messages_table_name = os.getenv("MESSAGES_TABLE_NAME")
         self._user_providers_table_name = os.getenv("USER_PROVIDERS_TABLE_NAME")
+        self._cleanup_table_name = os.getenv("CLEAN_UP_TABLE_NAME")
 
     def get_messages(self, hash_key: str, sender: list[str] | None = None, _from: int | None = None, _to: int | None = None) -> list[dict]:
         """Get the messages from the DynamoDB table"""
@@ -115,3 +117,16 @@ class DynamoDbClient():
         table = dynamodb.Table(self._messages_table_name)
         response = table.get_item(Key={'email_hash': email_hash, 'message_id': message_id})
         return response['Item'] if 'Item' in response else None
+
+    def add_vector_file_to_cleanup(self, file_name: str, file_id: str):
+        """Add the vector file to the cleanup table so that it can be deleted after a certain time"""
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table(self._cleanup_table_name)
+        ttl_value = int(time.time()) + 600
+        table.put_item(
+            Item={
+                "type": "vector_file",
+                "details": json.dumps({"file_name": file_name, "file_id": file_id}),
+                "delete_at": ttl_value
+            }
+        )

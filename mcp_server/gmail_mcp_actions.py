@@ -113,8 +113,10 @@ class GetUnreadMessages(MCPAction):
         InternalLogger.LogDebug(f"Uploading {len(unread_messages)} unread messages to the vector store")
 
         InternalLogger.LogDebug("Creating file in OpenAI")
+
+        vector_file_name: str = f"{request_id}.json"
         file_id: str = self.__openai_client.upload_vector_store_file(
-            file=(f"{request_id}.json", io.BytesIO(json.dumps(unread_messages, cls=DecimalEncoder).encode("utf-8")), "application/json"),
+            file=(vector_file_name, io.BytesIO(json.dumps(unread_messages, cls=DecimalEncoder).encode("utf-8")), "application/json"),
             purpose="user_data"
         ).id
 
@@ -130,6 +132,8 @@ class GetUnreadMessages(MCPAction):
         ).id
 
         InternalLogger.LogDebug(f"Vector store file created in OpenAI: {file_id}")
+
+        self.__dynamo_db_client.add_vector_file_to_cleanup(vector_file_name, file_id)
 
         self.wait_for_file_to_be_ready(file_id, vector_store_id)
 
