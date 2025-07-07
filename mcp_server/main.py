@@ -7,7 +7,7 @@ from mcp_server.auth import get_auth
 from mcp_server.dynamodb import DynamoDbClient
 from mcp_server.gmail_mcp_actions import DeleteMessages, GetUnreadMessages, MCPAction, QueryMessages
 from mcp_server.session_store import get_session_store
-
+from mcp_server.internal_logger import InternalLogger
 
 mcp = MCPLambdaHandler(name="ig-gmail-mcp", version="0.1.0", session_store=get_session_store())
 
@@ -36,6 +36,8 @@ def delete_messages_tool(sender: list[str] | None = None, from_date: int | None 
 
     Returns the number of messages deleted.
     """
+
+    InternalLogger.LogDebug(f"Deleting messages from {sender} from {from_date} to {to_date}")
     messages: list[dict] = DynamoDbClient().get_messages(authorized_user["email_hash"], sender, from_date, to_date)
 
     action_executor: MCPAction = mcp_actions["delete_messages"](authorized_user["refresh_token"])
@@ -54,6 +56,8 @@ def get_unread_messages_tool(from_date: int | None = None):
 
     Returns the number of unread messages. If it's 0, it means no unread messages were found if it's greater than 0, it means unread messages were found and the model should call the file_search tool to get the messages.
     """
+
+    InternalLogger.LogDebug(f"Getting unread messages from {from_date}")
 
     refresh_tokens: str | List[str] | None = DynamoDbClient().get_refresh_token(authorized_user["email_hash"])
     if isinstance(refresh_tokens, list):
@@ -82,6 +86,9 @@ def query_messages_tool(query: str):
 
     query: str = The query to search for in the user's inbox.
     """
+
+    InternalLogger.LogDebug(f"Querying messages for {query}")
+
     action_executor: MCPAction = mcp_actions["query_messages"]()
     messages: List[dict] = action_executor.execute(query=query, email_hash=authorized_user["email_hash"], request_id=request_id)
     return "Now use file_search tool to retrieve the messages. The file contains the all messages for provided query." if len(messages) > 0 else "No messages found"
@@ -94,6 +101,9 @@ def handler(event, context):
     #pylint: disable=W0603
     global authorized_user
     global request_id
+
+    InternalLogger.LogDebug(f"Authorized user: {authorized_user}")
+    InternalLogger.LogDebug(f"Request ID: {request_id}")
 
     authorized_user, request_id = get_auth(event)
     return mcp.handle_request(event, context)

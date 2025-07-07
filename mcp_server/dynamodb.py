@@ -92,7 +92,7 @@ class DynamoDbClient():
         table = dynamodb.Table(self._messages_table_name)
         response = table.query(
             KeyConditionExpression=Key('email_hash').eq(email_hash),
-            FilterExpression=dynamo_db_filter
+            FilterExpression=dynamo_db_filter or ""
         )
         items.extend(response['Items'])
 
