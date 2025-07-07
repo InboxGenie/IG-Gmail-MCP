@@ -41,4 +41,4 @@ jobs:
         run: aws s3 cp ig-gmail-mcp-server.zip s3://${{ secrets.LAMBDAS_BUCKET }}/ig-gmail-mcp-server.zip
 
       - name: Updating lambda code
-        run: aws lambda update-function-code --function-name ig-gmail-mcp --s3-bucket ${secrets.LAMBDAS_BUCKET} --s3-key ig-gmail-mcp-server.zip
+        run: aws lambda update-function-code --function-name ig-gmail-mcp --s3-bucket ${{secrets.LAMBDAS_BUCKET}} --s3-key ig-gmail-mcp-server.zip
