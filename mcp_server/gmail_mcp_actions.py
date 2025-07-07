@@ -10,6 +10,7 @@ from googleapiclient.discovery import build, Resource
 from google.oauth2.credentials import Credentials
 from openai.types.vector_stores import VectorStoreFile
 from boto3.dynamodb.conditions import Attr
+#pylint: disable=E0611
 from pinecone import QueryResponse
 from mcp_server.encoders import DecimalEncoder
 from mcp_server.dynamodb import DynamoDbClient
@@ -201,14 +202,14 @@ class QueryMessages(GetUnreadMessages):
 
 
     def _process_date_related_query(self, email_hash: str, query: str, ui_filter: QueryFilter | None, reasoning_filters: dict) -> List[dict]:
-        InternalLogger.LogDebug(f"Processing date related query for {query} for {email_hash} with request_id {request_id}")
+        InternalLogger.LogDebug(f"Processing date related query for {query} for {email_hash}")
 
         dynamo_db_filter: Attr = self.__reasoning_engine.convert_pinecone_filter_to_dynamodb_filter(reasoning_filters, ui_filter)
         InternalLogger.LogDebug(f"DynamoDB filter: {dynamo_db_filter}")
 
         user_messages: list[dict] = self.__dynamo_db_client.get_user_messages_by_filter(email_hash, dynamo_db_filter)
 
-        InternalLogger.LogDebug(f"Found {len(user_messages)} user messages for {query} for {email_hash} with request_id {request_id}")
+        InternalLogger.LogDebug(f"Found {len(user_messages)} user messages for {query} for {email_hash}")
 
         filtered_user_messages: list[dict] = []
         if reasoning_filters.get("is_asking_about_specific_details", False):
